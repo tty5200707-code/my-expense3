@@ -1,1 +1,551 @@
-<!DOCTYPE html><html lang="zh-TW"><head>  <meta charset="UTF-8">  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>智慧生活記帳本 (雲端連動版)</title>  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <style>    :root {      --primary: #4f46e5;      --primary-hover: #4338ca;      --success: #10b981;      --warning: #f59e0b;      --danger: #ef4444;      --bg: #f8fafc;      --card-bg: #ffffff;      --text: #0f172a;      --text-muted: #64748b;      --border: #e2e8f0;    }    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }    body { background-color: var(--bg); color: var(--text); padding: 20px 14px; display: flex; justify-content: center; }    .container { width: 100%; max-width: 1050px; }    header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }    header h1 { font-size: 1.5rem; color: var(--primary); }    .header-actions { display: flex; gap: 8px; align-items: center; }    .btn { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }    .btn:hover { opacity: 0.9; }    .btn:disabled { opacity: 0.6; cursor: not-allowed; }    .btn-primary { background: var(--primary); color: #fff; }    .btn-success { background: var(--success); color: #fff; }    .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }    #loading-bar { display: none; background: #e0e7ff; color: var(--primary); font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 20px; }    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }    .card { background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }    .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }    .stat-val { font-size: 1.35rem; font-weight: 700; color: var(--text); }    .stat-pocket { border-left: 5px solid var(--success); }    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }    .chart-container { position: relative; width: 100%; height: 260px; display: flex; justify-content: center; align-items: center; }    .forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }    label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }    input, select { padding: 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; }    input:focus, select:focus { border-color: var(--primary); }    .pocket-history { margin-top: 12px; max-height: 130px; overflow-y: auto; border-top: 1px dashed var(--border); padding-top: 8px; }    .pocket-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 4px 0; color: var(--text-muted); }    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }    .tab-group { display: flex; background: #e2e8f0; padding: 3px; border-radius: 8px; }    .tab-btn { padding: 6px 12px; border: none; background: none; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 6px; }    .tab-btn.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }    .search-box { min-width: 200px; position: relative; }    .search-box input { width: 100%; padding-left: 30px; }    .search-box::before { content: "\1F50D"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; }    .table-container { overflow-x: auto; }    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }    th, td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }    th { background: #f8fafc; color: var(--text-muted); font-weight: 600; }        .badge { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }    .badge-cat { background: #e0e7ff; color: var(--primary); }    .pay-零用金 { background: #dcfce7; color: #15803d; }    .pay-街口支付 { background: #fee2e2; color: #dc2626; }    .pay-LINE-PAY { background: #dcfce7; color: #059669; }    .pay-信用卡 { background: #e0f2fe; color: #0284c7; }    .pay-轉帳 { background: #fef3c7; color: #b45309; }    .thumb { width: 38px; height: 38px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); }    .btn-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.8rem; font-weight: 600; }    .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 16px; }    .lightbox img { max-width: 90%; max-height: 85vh; border-radius: 8px; }  </style></head><body><div class="container">  <header>    <h1>智慧生活記帳本</h1>    <div class="header-actions">      <div id="loading-bar">&#9203; 同步處理中...</div>      <button class="btn btn-outline" onclick="loadCloudData()">&#128260; 重新整理</button>      <button class="btn btn-success" onclick="exportToCSV()">&#128228; 匯出 CSV</button>    </div>  </header>  <!-- 儀表板看板 -->  <div class="dashboard-grid">    <div class="card stat-pocket">      <div class="stat-label">現有零用金餘額</div>      <div class="stat-val" id="pocket-balance" style="color: var(--success);">$0</div>    </div>    <div class="card">      <div class="stat-label">&#128197; 本日支出</div>      <div class="stat-val" id="today-expense">$0</div>    </div>    <div class="card">      <div class="stat-label">&#128197; 本週支出</div>      <div class="stat-val" id="week-expense">$0</div>    </div>    <div class="card">      <div class="stat-label">&#128197; 本月支出</div>      <div class="stat-val" id="month-expense">$0</div>    </div>  </div>  <!-- 圖表看板 -->  <div class="charts-grid">    <div class="card">      <h3 style="font-size: 0.95rem; margin-bottom: 10px;">&#128200; 每月支出趨勢</h3>      <div class="chart-container">        <canvas id="trendChart"></canvas>      </div>    </div>    <div class="card">      <h3 style="font-size: 0.95rem; margin-bottom: 10px;">&#129375; 分類支出佔比</h3>      <div class="chart-container">        <canvas id="categoryChart"></canvas>      </div>    </div>  </div>  <!-- 表單區 -->  <div class="forms-grid">    <!-- 支出表單 -->    <div class="card">      <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--primary);">&#65291; 新增消費支出</h3>      <form id="expense-form">        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">          <div class="form-group">            <label>消費日期</label>            <input type="date" id="date" required>          </div>          <div class="form-group">            <label>支出分類</label>            <select id="category" required>              <option value="飲食">飲食</option>              <option value="固定支出">固定支出</option>              <option value="育兒花費">育兒花費</option>              <option value="健康醫療">健康醫療</option>              <option value="網購">網購</option>              <option value="美容保養">美容保養</option>            </select>          </div>        </div>        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">          <div class="form-group">            <label>消費金額 (NTD)</label>            <input type="number" id="amount" placeholder="金額" min="1" step="any" required>          </div>          <div class="form-group">            <label>付款方式</label>            <select id="payment-method" required>              <option value="零用金">零用金</option>              <option value="街口支付">街口支付</option>              <option value="LINE PAY">LINE PAY</option>              <option value="信用卡">信用卡</option>              <option value="轉帳">轉帳</option>            </select>          </div>        </div>        <div class="form-group">          <label>店家／商戶名稱</label>          <input type="text" id="merchant" placeholder="例如：全聯、蝦皮" required>        </div>        <div class="form-group">          <label>備註說明</label>          <input type="text" id="note" placeholder="例如：買菜、午餐或日用品">        </div>        <div class="form-group">          <label>&#128206; 上傳收據／發票明細照片</label>          <input type="file" id="receipt" accept="image/*">        </div>        <button type="submit" id="btn-submit-expense" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px;">確認儲存支出</button>      </form>    </div>    <!-- 零用金儲值表單 -->    <div class="card">      <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--success);">&#128176; 零用金儲值與提領</h3>      <form id="pocket-form">        <div class="form-group">          <label>異動日期</label>          <input type="date" id="pocket-date" required>        </div>        <div class="form-group">          <label>異動金額 (加值請填正數，提領可填負數)</label>          <input type="number" id="pocket-amount" placeholder="例如：3000" step="any" required>        </div>        <div class="form-group">          <label>來源／備註</label>          <input type="text" id="pocket-desc" placeholder="例如：提款轉入零用金" required>        </div>        <button type="submit" id="btn-submit-pocket" class="btn btn-success" style="width: 100%; justify-content: center; padding: 10px; margin-top: 6px;">確認記錄零用金</button>      </form>      <div style="margin-top: 12px;">        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">最近存入/提領明細：</span>        <div class="pocket-history" id="pocket-history-list"></div>      </div>    </div>  </div>  <!-- 明細列表與搜尋 -->  <div class="card">    <div class="filter-bar">      <div class="tab-group">        <button class="tab-btn active" onclick="switchFilter('all', this)">全部</button>        <button class="tab-btn" onclick="switchFilter('day', this)">本日</button>        <button class="tab-btn" onclick="switchFilter('week', this)">本週</button>        <button class="tab-btn" onclick="switchFilter('month', this)">本月</button>      </div>      <div style="display:flex; gap: 8px; flex-wrap: wrap;">        <select id="filter-payment" onchange="renderList()" style="padding: 6px 10px; font-size: 0.85rem;">          <option value="">全部付款方式</option>          <option value="零用金">零用金</option>          <option value="街口支付">街口支付</option>          <option value="LINE PAY">LINE PAY</option>          <option value="信用卡">信用卡</option>          <option value="轉帳">轉帳</option>        </select>        <div class="search-box">          <input type="text" id="search-input" placeholder="搜尋店家、品項..." oninput="handleSearch()">        </div>      </div>    </div>    <div class="table-container">      <table>        <thead>          <tr>            <th>日期</th>            <th>分類</th>            <th>付款方式</th>            <th>店家</th>            <th>備註</th>            <th>金額</th>            <th>明細照</th>            <th>操作</th>          </tr>        </thead>        <tbody id="expense-tbody"></tbody>      </table>    </div>  </div></div><div class="lightbox" id="lightbox" onclick="closeLightbox()">  <img id="lightbox-img" src="" alt="明細憑證大圖"></div><script>  // 🔴 若有 Google Apps Script 請貼在此處，未填寫也能正常離線記帳 🔴  const API_URL = https://script.google.com/macros/s/AKfycbxdck-nTwCAvw19eXItcp8fu305zWL1BU0wldCyx0r8pqEiMyTJycA3Qlp3fLAQAdku3Q/exec;  const CATEGORIES = ["飲食", "固定支出", "育兒花費", "健康醫療", "網購", "美容保養"];  const CATEGORY_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6"];  let expenses = JSON.parse(localStorage.getItem("cloud_sync_expenses") || "[]");  let pocketLogs = JSON.parse(localStorage.getItem("cloud_sync_pocket") || "[]");  let currentRange = 'all';  let searchQuery = '';  let trendChartInstance = null;  let categoryChartInstance = null;  // 初始化預設今日日期  const todayStr = new Date().toISOString().split('T')[0];  document.getElementById('date').value = todayStr;  document.getElementById('pocket-date').value = todayStr;  function showLoading(show) {    document.getElementById("loading-bar").style.display = show ? "inline-block" : "none";  }  // 儲存至本機  function saveToLocal() {    localStorage.setItem("cloud_sync_expenses", JSON.stringify(expenses));        </div>        <div
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧生活記帳本 (雲端連動版)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --primary: #4f46e5; --success: #10b981; --danger: #ef4444;
+    --bg: #f8fafc; --card-bg: #ffffff; --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, sans-serif; }
+  body { background-color: var(--bg); color: var(--text); padding: 20px 14px; display: flex; justify-content: center; }
+  .container { width: 100%; max-width: 1050px; }
+  header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  header h1 { font-size: 1.5rem; color: var(--primary); }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+  #loading-bar { display: none; background: #e0e7ff; color: var(--primary); font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 20px; }
+  .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+  .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-val { font-size: 1.35rem; font-weight: 700; color: var(--text); }
+  .stat-pocket { border-left: 5px solid var(--success); }
+  .charts-grid, .forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .chart-container { position: relative; width: 100%; height: 260px; display: flex; justify-content: center; align-items: center; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+  input, select { padding: 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; background: #fff; }
+  input:focus, select:focus { border-color: var(--primary); }
+  .pocket-history { margin-top: 12px; max-height: 130px; overflow-y: auto; border-top: 1px dashed var(--border); padding-top: 8px; }
+  .pocket-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 4px 0; color: var(--text-muted); gap: 8px; }
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .tab-group { display: flex; background: #e2e8f0; padding: 3px; border-radius: 8px; }
+  .tab-btn { padding: 6px 12px; border: none; background: none; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 6px; }
+  .tab-btn.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .search-box { min-width: 200px; position: relative; }
+  .search-box input { width: 100%; padding-left: 30px; }
+  .search-box::before { content: "\1F50D"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; }
+  .table-container { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+  th, td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+  th { background: #f8fafc; color: var(--text-muted); font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+  .badge-cat { background: #e0e7ff; color: var(--primary); }
+  .pay-零用金 { background: #dcfce7; color: #15803d; }
+  .pay-街口支付 { background: #fee2e2; color: #dc2626; }
+  .pay-LINE-PAY { background: #dcfce7; color: #059669; }
+  .pay-信用卡 { background: #e0f2fe; color: #0284c7; }
+  .pay-轉帳 { background: #fef3c7; color: #b45309; }
+  .thumb { width: 38px; height: 38px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); }
+  .btn-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+  .empty { text-align: center; color: var(--text-muted); padding: 24px 0; }
+  .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+  .lightbox img { max-width: 90%; max-height: 85vh; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>智慧生活記帳本</h1>
+    <div class="header-actions">
+      <div id="loading-bar">&#9203; 同步處理中...</div>
+      <button class="btn btn-outline" onclick="loadCloudData()">&#128260; 重新整理</button>
+      <button class="btn btn-success" onclick="exportToCSV()">&#128228; 匯出 CSV</button>
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+    <div class="card stat-pocket">
+      <div class="stat-label">現有零用金餘額</div>
+      <div class="stat-val" id="pocket-balance" style="color: var(--success);">$0</div>
+    </div>
+    <div class="card"><div class="stat-label">&#128197; 本日支出</div><div class="stat-val" id="today-expense">$0</div></div>
+    <div class="card"><div class="stat-label">&#128197; 本週支出</div><div class="stat-val" id="week-expense">$0</div></div>
+    <div class="card"><div class="stat-label">&#128197; 本月支出</div><div class="stat-val" id="month-expense">$0</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card">
+      <h3 style="font-size: 0.95rem; margin-bottom: 10px;">&#128200; 每月支出趨勢</h3>
+      <div class="chart-container"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="font-size: 0.95rem; margin-bottom: 10px;">&#129375; 分類支出佔比</h3>
+      <div class="chart-container"><canvas id="categoryChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="forms-grid">
+    <div class="card">
+      <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--primary);">&#65291; 新增消費支出</h3>
+      <form id="expense-form">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label>消費日期</label>
+            <input type="date" id="date" required>
+          </div>
+          <div class="form-group">
+            <label>支出分類</label>
+            <select id="category" required>
+              <option value="飲食">飲食</option>
+              <option value="固定支出">固定支出</option>
+              <option value="育兒花費">育兒花費</option>
+              <option value="健康醫療">健康醫療</option>
+              <option value="網購">網購</option>
+              <option value="美容保養">美容保養</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label>消費金額 (NTD)</label>
+            <input type="number" id="amount" placeholder="金額" min="1" step="any" required>
+          </div>
+          <div class="form-group">
+            <label>付款方式</label>
+            <select id="payment-method" required>
+              <option value="零用金">零用金</option>
+              <option value="街口支付">街口支付</option>
+              <option value="LINE PAY">LINE PAY</option>
+              <option value="信用卡">信用卡</option>
+              <option value="轉帳">轉帳</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>店家／商戶名稱</label>
+          <input type="text" id="merchant" placeholder="例如：全聯、蝦皮" required>
+        </div>
+        <div class="form-group">
+          <label>備註說明</label>
+          <input type="text" id="note" placeholder="例如：買菜、午餐或日用品">
+        </div>
+        <div class="form-group">
+          <label>&#128206; 上傳收據／發票明細照片</label>
+          <input type="file" id="receipt" accept="image/*">
+        </div>
+        <button type="submit" id="btn-submit-expense" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px;">確認儲存支出</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--success);">&#128176; 零用金儲值與提領</h3>
+      <form id="pocket-form">
+        <div class="form-group">
+          <label>異動日期</label>
+          <input type="date" id="pocket-date" required>
+        </div>
+        <div class="form-group">
+          <label>異動金額 (加值請填正數，提領可填負數)</label>
+          <input type="number" id="pocket-amount" placeholder="例如：3000" step="any" required>
+        </div>
+        <div class="form-group">
+          <label>來源／備註</label>
+          <input type="text" id="pocket-desc" placeholder="例如：提款轉入零用金" required>
+        </div>
+        <button type="submit" id="btn-submit-pocket" class="btn btn-success" style="width: 100%; justify-content: center; padding: 10px; margin-top: 6px;">確認記錄零用金</button>
+      </form>
+      <div style="margin-top: 12px;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">最近存入/提領明細：</span>
+        <div class="pocket-history" id="pocket-history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="tab-group">
+        <button class="tab-btn active" onclick="switchFilter('all', this)">全部</button>
+        <button class="tab-btn" onclick="switchFilter('day', this)">本日</button>
+        <button class="tab-btn" onclick="switchFilter('week', this)">本週</button>
+        <button class="tab-btn" onclick="switchFilter('month', this)">本月</button>
+      </div>
+      <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+        <select id="filter-payment" onchange="renderList()" style="padding: 6px 10px; font-size: 0.85rem;">
+          <option value="">全部付款方式</option>
+          <option value="零用金">零用金</option>
+          <option value="街口支付">街口支付</option>
+          <option value="LINE PAY">LINE PAY</option>
+          <option value="信用卡">信用卡</option>
+          <option value="轉帳">轉帳</option>
+        </select>
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="搜尋店家、品項..." oninput="handleSearch()">
+        </div>
+      </div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th><th>分類</th><th>付款方式</th><th>店家</th><th>備註</th><th>金額</th><th>明細照</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="expense-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="明細憑證大圖">
+</div>
+
+<script>
+  // 🔴 若有 Google Apps Script 請貼在此處，未填寫也能正常離線記帳 🔴
+  const API_URL = "https://script.google.com/macros/s/AKfycbxdck-nTwCAvw19eXItcp8fu305zWL1BU0wldCyx0r8pqEiMyTJycA3Qlp3fLAQAdku3Q/exec";
+
+  const CATEGORIES = ["飲食", "固定支出", "育兒花費", "健康醫療", "網購", "美容保養"];
+  const CATEGORY_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6"];
+
+  function readLocal(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; }
+  }
+  let expenses = readLocal("cloud_sync_expenses");
+  let pocketLogs = readLocal("cloud_sync_pocket");
+
+  let currentRange = 'all';
+  let searchQuery = '';
+  let trendChartInstance = null;
+  let categoryChartInstance = null;
+
+  const hasCloud = () => API_URL && !API_URL.includes("你的GAS部署網址ID");
+
+  // 以本地時間取得 YYYY-MM-DD（避免 UTC 造成日期差一天）
+  function toDateStr(d) {
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  const todayStr = toDateStr(new Date());
+  document.getElementById('date').value = todayStr;
+  document.getElementById('pocket-date').value = todayStr;
+
+  function showLoading(show) {
+    document.getElementById("loading-bar").style.display = show ? "inline-block" : "none";
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  const money = n => '$' + Math.round(n).toLocaleString();
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // 儲存至本機
+  function saveToLocal() {
+    try {
+      localStorage.setItem("cloud_sync_expenses", JSON.stringify(expenses));
+      localStorage.setItem("cloud_sync_pocket", JSON.stringify(pocketLogs));
+      return true;
+    } catch (e) {
+      alert("瀏覽器儲存空間不足，請刪除部分含照片的舊紀錄後再試。");
+      return false;
+    }
+  }
+
+  // 同步到雲端（有設定 GAS 才會執行，失敗不影響本機記帳）
+  async function pushToCloud(action, payload) {
+    if (!hasCloud()) return;
+    try {
+      showLoading(true);
+      await fetch(API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...payload })
+      });
+    } catch (e) {
+      console.warn("雲端同步失敗，資料已保留在本機：", e);
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  async function loadCloudData() {
+    if (hasCloud()) {
+      try {
+        showLoading(true);
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const cloudEmpty = !(data.expenses || []).length && !(data.pocketLogs || []).length;
+        if (cloudEmpty && (expenses.length || pocketLogs.length)) {
+          // 雲端還是空的：先把本機既有資料上傳，避免被覆蓋
+          await pushToCloud("bulkImport", { expenses, pocketLogs });
+        } else {
+          if (Array.isArray(data.expenses)) expenses = data.expenses;
+          if (Array.isArray(data.pocketLogs)) pocketLogs = data.pocketLogs;
+          saveToLocal();
+        }
+      } catch (e) {
+        console.warn("讀取雲端失敗，改用本機資料：", e);
+      } finally {
+        showLoading(false);
+      }
+    }
+    renderAll();
+  }
+
+  // 壓縮圖片，避免撐爆 localStorage
+  function compressImage(file, maxSize = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ===== 日期範圍 =====
+  function startOfWeekStr() {
+    const d = new Date();
+    const diff = (d.getDay() + 6) % 7; // 週一為一週起點
+    d.setDate(d.getDate() - diff);
+    return toDateStr(d);
+  }
+  function inRange(dateStr, range) {
+    if (range === 'all') return true;
+    if (range === 'day') return dateStr === todayStr;
+    if (range === 'week') return dateStr >= startOfWeekStr() && dateStr <= todayStr;
+    if (range === 'month') return dateStr.slice(0, 7) === todayStr.slice(0, 7);
+    return true;
+  }
+  const sumOf = list => list.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  // ===== 表單送出 =====
+  document.getElementById('expense-form').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    const btn = document.getElementById('btn-submit-expense');
+    btn.disabled = true;
+    try {
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (!(amount > 0)) { alert("請輸入大於 0 的金額"); return; }
+
+      let image = "";
+      const file = document.getElementById('receipt').files[0];
+      if (file) {
+        try { image = await compressImage(file); }
+        catch (e) { console.warn("圖片處理失敗，將不附照片", e); }
+      }
+
+      const record = {
+        id: newId(),
+        date: document.getElementById('date').value,
+        category: document.getElementById('category').value,
+        amount: amount,
+        payment: document.getElementById('payment-method').value,
+        merchant: document.getElementById('merchant').value.trim(),
+        note: document.getElementById('note').value.trim(),
+        image: image
+      };
+      expenses.push(record);
+      if (!saveToLocal()) { expenses.pop(); return; }
+
+      this.reset();
+      document.getElementById('date').value = todayStr;
+      renderAll();
+      pushToCloud("addExpense", { record });
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('pocket-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    const amount = parseFloat(document.getElementById('pocket-amount').value);
+    if (!amount) { alert("請輸入異動金額（不可為 0）"); return; }
+
+    const record = {
+      id: newId(),
+      date: document.getElementById('pocket-date').value,
+      amount: amount,
+      desc: document.getElementById('pocket-desc').value.trim()
+    };
+    pocketLogs.push(record);
+    if (!saveToLocal()) { pocketLogs.pop(); return; }
+
+    this.reset();
+    document.getElementById('pocket-date').value = todayStr;
+    renderAll();
+    pushToCloud("addPocket", { record });
+  });
+
+  // ===== 刪除 =====
+  function deleteExpense(id) {
+    if (!confirm("確定要刪除這筆支出嗎？")) return;
+    expenses = expenses.filter(e => e.id !== id);
+    saveToLocal();
+    renderAll();
+    pushToCloud("deleteExpense", { id });
+  }
+  function deletePocket(id) {
+    if (!confirm("確定要刪除這筆零用金紀錄嗎？")) return;
+    pocketLogs = pocketLogs.filter(p => p.id !== id);
+    saveToLocal();
+    renderAll();
+    pushToCloud("deletePocket", { id });
+  }
+
+  // ===== 篩選 =====
+  function switchFilter(range, btn) {
+    currentRange = range;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderList();
+  }
+  function handleSearch() {
+    searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+    renderList();
+  }
+
+  // ===== 畫面渲染 =====
+  function renderStats() {
+    const pocketIn = pocketLogs.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const pocketSpent = sumOf(expenses.filter(e => e.payment === "零用金"));
+    const balance = pocketIn - pocketSpent;
+    const balEl = document.getElementById('pocket-balance');
+    balEl.textContent = (balance < 0 ? '-' : '') + money(Math.abs(balance));
+    balEl.style.color = balance < 0 ? 'var(--danger)' : 'var(--success)';
+
+    document.getElementById('today-expense').textContent = money(sumOf(expenses.filter(e => inRange(e.date, 'day'))));
+    document.getElementById('week-expense').textContent = money(sumOf(expenses.filter(e => inRange(e.date, 'week'))));
+    document.getElementById('month-expense').textContent = money(sumOf(expenses.filter(e => inRange(e.date, 'month'))));
+  }
+
+  function renderPocketHistory() {
+    const box = document.getElementById('pocket-history-list');
+    if (!pocketLogs.length) { box.innerHTML = '<div class="pocket-item">尚無紀錄</div>'; return; }
+    const sorted = [...pocketLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+    box.innerHTML = sorted.map(p => {
+      const pos = Number(p.amount) >= 0;
+      return `<div class="pocket-item">
+        <span>${esc(p.date)} ${esc(p.desc)}</span>
+        <span style="display:flex; gap:8px; align-items:center;">
+          <b style="color:${pos ? 'var(--success)' : 'var(--danger)'}">${pos ? '+' : '-'}${money(Math.abs(p.amount))}</b>
+          <button class="btn-del" onclick="deletePocket('${esc(p.id)}')">刪除</button>
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderList() {
+    const pay = document.getElementById('filter-payment').value;
+    const list = expenses
+      .filter(e => inRange(e.date, currentRange))
+      .filter(e => !pay || e.payment === pay)
+      .filter(e => !searchQuery || (e.merchant + ' ' + e.note + ' ' + e.category).toLowerCase().includes(searchQuery))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const tbody = document.getElementById('expense-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">沒有符合的支出紀錄</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(e => `<tr>
+      <td>${esc(e.date)}</td>
+      <td><span class="badge badge-cat">${esc(e.category)}</span></td>
+      <td><span class="badge pay-${esc(String(e.payment).replace(/ /g, '-'))}">${esc(e.payment)}</span></td>
+      <td>${esc(e.merchant)}</td>
+      <td>${esc(e.note)}</td>
+      <td><b>${money(e.amount)}</b></td>
+      <td>${e.image ? `<img class="thumb" src="${e.image}" onclick="openLightbox(this.src)" alt="收據">` : '-'}</td>
+      <td><button class="btn-del" onclick="deleteExpense('${esc(e.id)}')">刪除</button></td>
+    </tr>`).join('');
+  }
+
+  function renderCharts() {
+    if (typeof Chart === 'undefined') return; // 圖表套件載入失敗時，不影響記帳功能
+
+    // 每月趨勢：最近 6 個月
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+    }
+    const monthTotals = months.map(m => sumOf(expenses.filter(e => e.date.slice(0, 7) === m)));
+
+    if (trendChartInstance) trendChartInstance.destroy();
+    trendChartInstance = new Chart(document.getElementById('trendChart'), {
+      type: 'bar',
+      data: { labels: months, datasets: [{ label: '支出', data: monthTotals, backgroundColor: '#4f46e5', borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // 分類佔比：本月
+    const catTotals = CATEGORIES.map(c => sumOf(expenses.filter(e => e.category === c && inRange(e.date, 'month'))));
+    if (categoryChartInstance) categoryChartInstance.destroy();
+    categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+      type: 'doughnut',
+      data: { labels: CATEGORIES, datasets: [{ data: catTotals, backgroundColor: CATEGORY_COLORS }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  function renderAll() {
+    renderStats();
+    renderPocketHistory();
+    renderList();
+    try { renderCharts(); } catch (e) { console.warn("圖表繪製失敗", e); }
+  }
+
+  // ===== 圖片放大 =====
+  function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').style.display = 'flex';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+
+  // ===== 匯出 CSV =====
+  function exportToCSV() {
+    const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = [["類型", "日期", "分類", "付款方式", "店家", "備註", "金額"]];
+    expenses.forEach(e => rows.push(["支出", e.date, e.category, e.payment, e.merchant, e.note, e.amount]));
+    pocketLogs.forEach(p => rows.push(["零用金", p.date, "", "", "", p.desc, p.amount]));
+    rows.sort((a, b) => (a[0] === "類型" ? -1 : b[0] === "類型" ? 1 : b[1].localeCompare(a[1])));
+    const csv = '\uFEFF' + rows.map(r => r.map(cell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '記帳本_' + todayStr + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // 啟動
+  loadCloudData();
+</script>
+</body>
+</html>

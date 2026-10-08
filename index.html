@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- saved from url=(0046)https://tty5200707-code.github.io/my-expense3/ -->
 <html lang="zh-TW"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>智慧生活記帳本 (雲端連動版)</title>
-<script src="./自己記帳本_files/chart.js.下載"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --primary: #4f46e5; --success: #10b981; --danger: #ef4444;
@@ -86,11 +85,11 @@
   <div class="charts-grid">
     <div class="card">
       <h3 style="font-size: 0.95rem; margin-bottom: 10px;">📈 每月支出趨勢</h3>
-      <div class="chart-container"><canvas id="trendChart" width="604" height="325" style="display: block; box-sizing: border-box; height: 260px; width: 483.4px;"></canvas></div>
+      <div class="chart-container"><canvas id="trendChart"></canvas></div>
     </div>
     <div class="card">
       <h3 style="font-size: 0.95rem; margin-bottom: 10px;">🥟 分類支出佔比</h3>
-      <div class="chart-container"><canvas id="categoryChart" width="604" height="325" style="display: block; box-sizing: border-box; height: 260px; width: 483.4px;"></canvas></div>
+      <div class="chart-container"><canvas id="categoryChart"></canvas></div>
     </div>
   </div>
 

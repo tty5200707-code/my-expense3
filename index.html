@@ -112,6 +112,7 @@
               <option value="網購">網購</option>
               <option value="美容保養">美容保養</option>
               <option value="人情往來">人情往來</option>
+              <option value="娛樂旅遊訂閱">娛樂旅遊訂閱</option>
             </select>
           </div>
         </div>
@@ -231,8 +232,8 @@
   // 🔴 若有 Google Apps Script 請貼在此處，未填寫也能正常離線記帳 🔴
   const API_URL = "https://script.google.com/macros/s/AKfycbxdck-nTwCAvw19eXItcp8fu305zWL1BU0wldCyx0r8pqEiMyTJycA3Qlp3fLAQAdku3Q/exec";
 
-  const CATEGORIES = ["飲食", "固定支出", "育兒花費", "健康醫療", "網購", "美容保養", "人情往來"];
-  const CATEGORY_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#fb923c"];
+  const CATEGORIES = ["飲食", "固定支出", "育兒花費", "健康醫療", "網購", "美容保養", "人情往來", "娛樂旅遊訂閱"];
+  const CATEGORY_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#fb923c", "#22d3ee"];
 
   function readLocal(key) {
     try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; }

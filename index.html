@@ -63,6 +63,8 @@
   .ms-top { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 10px; }
   .ms-top .stat-val { font-size: 1.15rem; }
   .cat-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin: 5px 0; }
+  .cat-row { cursor: pointer; border-radius: 6px; padding: 2px 4px; }
+  .cat-row:hover, .cat-row.active { background: #e0e7ff; }
   .cat-name { width: 64px; color: var(--text-muted); }
   .cat-bar { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
   .cat-fill { height: 100%; border-radius: 4px; }
@@ -190,6 +192,9 @@
         <button class="tab-btn" onclick="switchFilter('pick', this)">指定月份</button>
       </div>
       <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+        <select id="filter-category" onchange="renderList()" style="padding: 6px 10px; font-size: 0.85rem;">
+          <option value="">全部分類</option>
+        </select>
         <select id="filter-payment" onchange="renderList()" style="padding: 6px 10px; font-size: 0.85rem;">
           <option value="">全部付款方式</option>
           <option value="零用金">零用金</option>
@@ -211,6 +216,7 @@
       </div>
       <div class="month-summary" id="month-summary"></div>
     </div>
+    <div id="list-total" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;"></div>
     <div class="table-container">
       <table>
         <thead>
@@ -459,9 +465,22 @@
     selectedMonth = v;
     renderList();
   }
+  function pickCategory(c) {
+    const sel = document.getElementById('filter-category');
+    sel.value = sel.value === c ? '' : c; // 再點一次取消
+    renderList();
+  }
+  function refreshCategoryOptions() {
+    const sel = document.getElementById('filter-category');
+    const cur = sel.value;
+    const cats = [...new Set([...CATEGORIES, ...expenses.map(e => e.category).filter(Boolean)])];
+    sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value = cats.includes(cur) ? cur : '';
+  }
   function renderMonthSummary() {
     const box = document.getElementById('month-summary');
     const list = expenses.filter(e => e.date.slice(0, 7) === selectedMonth);
+    const catFilter = document.getElementById('filter-category').value;
     const total = sumOf(list);
     const [y, m] = selectedMonth.split('-').map(Number);
     const daysInMonth = new Date(y, m, 0).getDate();
@@ -481,7 +500,7 @@
         if (!amt) return '';
         const pct = total ? amt / total * 100 : 0;
         const color = CATEGORY_COLORS[CATEGORIES.indexOf(c)] || '#94a3b8';
-        return `<div class="cat-row"><span class="cat-name">${esc(c)}</span>
+        return `<div class="cat-row${catFilter === c ? ' active' : ''}" onclick="pickCategory('${esc(c)}')" title="點一下只看這個分類"><span class="cat-name">${esc(c)}</span>
           <div class="cat-bar"><div class="cat-fill" style="width:${pct.toFixed(1)}%; background:${color};"></div></div>
           <span class="cat-amt">${money(amt)} (${pct.toFixed(0)}%)</span></div>`;
       }).join('');
@@ -524,15 +543,19 @@
   }
 
   function renderList() {
+    refreshCategoryOptions();
     if (currentRange === 'pick') renderMonthSummary();
     const pay = document.getElementById('filter-payment').value;
+    const cat = document.getElementById('filter-category').value;
     const list = expenses
       .filter(e => inRange(e.date, currentRange))
+      .filter(e => !cat || e.category === cat)
       .filter(e => !pay || e.payment === pay)
       .filter(e => !searchQuery || (e.merchant + ' ' + e.note + ' ' + e.category).toLowerCase().includes(searchQuery))
       .sort((a, b) => b.date.localeCompare(a.date));
 
     const tbody = document.getElementById('expense-tbody');
+    document.getElementById('list-total').innerHTML = '目前列表：共 <b>' + list.length + '</b> 筆，合計 <b style="color: var(--text);">' + money(sumOf(list)) + '</b>';
     if (!list.length) {
       tbody.innerHTML = '<tr><td colspan="8" class="empty">沒有符合的支出紀錄</td></tr>';
       return;
